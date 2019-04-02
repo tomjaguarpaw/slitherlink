@@ -1,5 +1,5 @@
 import qualified Data.Map
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing)
 
 data EdgeDirection = South | East deriving (Ord, Eq, Show)
 
@@ -14,6 +14,31 @@ data Arena a = Arena { arenaWidth   :: Int
 type Face = (Int, Int)
 type Vertex = (Int, Int)
 type Edge = (Vertex, EdgeDirection)
+
+data StepResult = Solved
+                | Step (Arena (Maybe EdgePresence))
+                | Unsolvable
+                | Don'tKnowWhatToDo
+
+step :: Arena (Maybe EdgePresence) -> StepResult
+step a = case undecidedEdges of
+  []    -> Solved
+  (_:_) -> go undecidedEdges
+
+  where go []     = Don'tKnowWhatToDo
+        go (x:xs) =
+          let aWith    = a { arenaEdges = Data.Map.insert x (Just Present) (arenaEdges a) }
+              aWithout = a { arenaEdges = Data.Map.insert x (Just Absent)  (arenaEdges a) }
+          in case (validSoFar aWith, validSoFar aWithout) of
+            (True, True)   -> go xs
+            (False, False) -> Unsolvable
+            (True, False)  -> Step aWith
+            (False, True)  -> Step aWithout
+
+        undecidedEdges = filter (isNothing . fromJust . flip Data.Map.lookup (arenaEdges a)) (arenaEdgesT a)
+
+arenaEdgesT :: Arena a -> [Edge]
+arenaEdgesT a = edgesHW (arenaWidth a) (arenaHeight a)
 
 arenaFaces :: Arena a -> [Face]
 arenaFaces arena = do
@@ -84,16 +109,31 @@ char :: Maybe EdgePresence -> EdgeDirection -> String
 char Nothing _ = "."
 char (Just Present) South = "|"
 char (Just Present) East  = "-"
-char (Just Absent)  South = "."
-char (Just Absent)  East  = "."
+char (Just Absent)  South = " "
+char (Just Absent)  East  = " "
 
 main :: IO ()
 main = do
   printArena (emptyArena 10 10)
   printArena (arenaOfFoo puzzle)
+  putStrLn ""
+  loop (arenaOfFoo puzzle)
+
+  where loop a = do
+          printArena a
+          _ <- getLine
+          case step a of
+            Step a' -> loop a'
+            Don'tKnowWhatToDo -> putStrLn "Don't know what to do"
+            Unsolvable -> putStrLn "Unsolvable"
+            Solved -> putStrLn "Solved"
 
 emptyArena :: Int -> Int -> Arena (Maybe EdgePresence)
 emptyArena x y = Arena x y Data.Map.empty (Data.Map.fromList edges')
+  where edges' = map (\x -> (x, Nothing)) (edgesHW x y)
+
+edgesHW :: Int -> Int -> [Edge]
+edgesHW x y = edges
   where edges = do
           xi <- [0..x]
           yi <- [0..y]
@@ -104,7 +144,6 @@ emptyArena x y = Arena x y Data.Map.empty (Data.Map.fromList edges')
           else if (yi < y)
           then [((xi,yi), South)]
           else []
-        edges' = map (\x -> (x, Nothing)) edges
 
 data Foo = Foo { unFoo :: Maybe Int }
 
