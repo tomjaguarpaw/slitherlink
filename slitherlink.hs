@@ -37,6 +37,35 @@ step a = case undecidedEdges of
 
         undecidedEdges = filter (isNothing . fromJust . flip Data.Map.lookup (arenaEdges a)) (arenaEdgesT a)
 
+step2 :: Arena (Maybe EdgePresence) -> StepResult
+step2 a = case undecidedEdgePairs of
+  []    -> Solved
+  (_:_) -> go undecidedEdgePairs
+
+  where go []     = Don'tKnowWhatToDo
+        go ((x1,x2):xs) =
+          let aNeither = a { arenaEdges = Data.Map.insert x1 (Just Absent)
+                                          $ Data.Map.insert x2 (Just Absent)
+                                          $ (arenaEdges a) }
+              aFirst   = a { arenaEdges = Data.Map.insert x1 (Just Present)
+                                          $ Data.Map.insert x2 (Just Absent)
+                                          $ (arenaEdges a) }
+              aSecond  = a { arenaEdges = Data.Map.insert x1 (Just Absent)
+                                          $ Data.Map.insert x2 (Just Present)
+                                          $ (arenaEdges a) }
+              aBoth    = a { arenaEdges = Data.Map.insert x1 (Just Present)
+                                          $ Data.Map.insert x2 (Just Present)
+                                          $ (arenaEdges a) }
+
+          in case filter validSoFar [aNeither, aFirst, aSecond, aBoth] of
+            []      -> Unsolvable
+            [only]  -> Step only
+            (_:_:_) -> go xs
+
+        -- Probably want to make this pairs from one vertex
+        undecidedEdges = filter (isNothing . fromJust . flip Data.Map.lookup (arenaEdges a)) (arenaEdgesT a)
+        undecidedEdgePairs = filter (uncurry (/=)) ((,) <$> undecidedEdges <*> undecidedEdges)
+
 arenaEdgesT :: Arena a -> [Edge]
 arenaEdgesT a = edgesHW (arenaWidth a) (arenaHeight a)
 
@@ -114,17 +143,18 @@ char (Just Absent)  East  = " "
 
 main :: IO ()
 main = do
-  printArena (emptyArena 10 10)
-  printArena (arenaOfFoo puzzle)
-  putStrLn ""
-  loop (arenaOfFoo puzzle)
+  loop (arenaOfFoo hardPuzzle)
 
   where loop a = do
           printArena a
           _ <- getLine
           case step a of
             Step a' -> loop a'
-            Don'tKnowWhatToDo -> putStrLn "Don't know what to do"
+            Don'tKnowWhatToDo -> case step2 a of
+              Step a' -> loop a'
+              Don'tKnowWhatToDo -> putStrLn "Don't know what to do"
+              Unsolvable -> putStrLn "Unsolvable"
+              Solved -> putStrLn "Solved"
             Unsolvable -> putStrLn "Unsolvable"
             Solved -> putStrLn "Solved"
 
@@ -164,6 +194,20 @@ puzzle = [ [__, __,  3,  3, __]
          , [__, __, __, __,  2]
          , [ 3,  1,  2,  2,  3]
          ]
+
+hardPuzzle :: [[Foo]]
+hardPuzzle =
+  [ [  3,  2,  2,  2, __, __,  2, __, __,  2]
+  , [ __, __,  2,  1,  3, __,  3, __, __,  3]
+  , [ __, __, __, __,  1, __, __, __,  2,  1]
+  , [  1,  3, __,  2,  1, __,  2, __,  3,  1]
+  , [ __, __, __, __,  2,  2,  2,  1,  1, __]
+  , [ __,  3,  3,  3,  2,  3, __, __, __, __]
+  , [  2,  2, __,  2, __,  1,  0, __,  2,  1]
+  , [  2,  3, __, __, __,  1, __, __, __, __]
+  , [  3, __, __,  2, __,  0,  1,  2, __, __]
+  , [  2, __, __,  2, __, __,  3,  3,  2,  3]
+  ]
 
 arenaOfFoo :: [[Foo]] -> Arena (Maybe EdgePresence)
 arenaOfFoo foo = empty { arenaNumbers = ns }
