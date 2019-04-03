@@ -1,7 +1,7 @@
 import qualified Data.Map
 import Data.Maybe (fromJust, isNothing)
 
-data EdgeDirection = South | East deriving (Ord, Eq, Show)
+data EdgeDirection = South | East deriving (Ord, Eq, Show, Read)
 
 data EdgePresence = Present | Absent deriving (Eq, Show)
 
@@ -62,9 +62,15 @@ step2 a = case undecidedEdgePairs of
             [only]  -> Step only
             (_:_:_) -> go xs
 
-        -- Probably want to make this pairs from one vertex
-        undecidedEdges = filter (isNothing . fromJust . flip Data.Map.lookup (arenaEdges a)) (arenaEdgesT a)
-        undecidedEdgePairs = filter (uncurry (/=)) ((,) <$> undecidedEdges <*> undecidedEdges)
+        undecidedEdgePairs :: [(Edge, Edge)]
+        undecidedEdgePairs = do
+          vertex <- arenaVertices a
+          let undecidedEdges = filter (isNothing . fromJust . flip Data.Map.lookup (arenaEdges a)) (edgesOfVertex a vertex)
+          edge1  <- undecidedEdges
+          edge2  <- undecidedEdges
+          if edge1 /= edge2
+          then return (edge1, edge2)
+          else []
 
 arenaEdgesT :: Arena a -> [Edge]
 arenaEdgesT a = edgesHW (arenaWidth a) (arenaHeight a)
@@ -141,22 +147,31 @@ char (Just Present) East  = "-"
 char (Just Absent)  South = " "
 char (Just Absent)  East  = " "
 
+data Choice = P Edge | A Edge deriving Read
+
 main :: IO ()
 main = do
-  loop (arenaOfFoo hardPuzzle)
+  loop (arenaOfFoo hardPuzzle) 0
 
-  where loop a = do
+  where loop a n = do
+          print n
           printArena a
-          _ <- getLine
-          case step a of
-            Step a' -> loop a'
-            Don'tKnowWhatToDo -> case step2 a of
-              Step a' -> loop a'
-              Don'tKnowWhatToDo -> putStrLn "Don't know what to do"
+          line <- getLine
+
+          if line == ""
+            then case step a of
+              Step a' -> loop a' (n + 1)
+              Don'tKnowWhatToDo -> case step2 a of
+                Step a' -> loop a' (n + 1)
+                Don'tKnowWhatToDo -> putStrLn "Didn't do anything" >> loop a (n + 1)
+                Unsolvable -> putStrLn "Unsolvable"
+                Solved -> putStrLn "Solved"
               Unsolvable -> putStrLn "Unsolvable"
               Solved -> putStrLn "Solved"
-            Unsolvable -> putStrLn "Unsolvable"
-            Solved -> putStrLn "Solved"
+            else let an = case read line of
+                       A e -> a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+                       P e -> a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                 in loop an n
 
 emptyArena :: Int -> Int -> Arena (Maybe EdgePresence)
 emptyArena x y = Arena x y Data.Map.empty (Data.Map.fromList edges')
