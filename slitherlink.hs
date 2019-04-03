@@ -203,6 +203,7 @@ instance Num Foo where
   signum = undefined
   negate = undefined
 
+__ :: Foo
 __ = Foo Nothing
 
 puzzle :: [[Foo]]
