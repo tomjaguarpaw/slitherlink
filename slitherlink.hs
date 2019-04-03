@@ -35,7 +35,7 @@ step a = case undecidedEdges of
             (True, False)  -> Step aWith
             (False, True)  -> Step aWithout
 
-        undecidedEdges = filter (isNothing . fromJust . flip Data.Map.lookup (arenaEdges a)) (arenaEdgesT a)
+        undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
 
 step2 :: Arena (Maybe EdgePresence) -> StepResult
 step2 a = case undecidedEdgePairs of
@@ -65,7 +65,7 @@ step2 a = case undecidedEdgePairs of
         undecidedEdgePairs :: [(Edge, Edge)]
         undecidedEdgePairs = do
           vertex <- arenaVertices a
-          let undecidedEdges = filter (isNothing . fromJust . flip Data.Map.lookup (arenaEdges a)) (edgesOfVertex a vertex)
+          let undecidedEdges = filter (isNothing . edgeLabel a) (edgesOfVertex a vertex)
           edge1  <- undecidedEdges
           edge2  <- undecidedEdges
           if edge1 /= edge2
@@ -108,7 +108,7 @@ validFaceSoFar arena face = case Data.Map.lookup face (arenaNumbers arena) of
   Nothing     -> True
   Just number -> (definitelyPresent <= number) && (number <= possiblyPresent)
     where edges   = edgesOfFace face
-          edgePresences = map (fromJust . flip Data.Map.lookup (arenaEdges arena)) edges
+          edgePresences = map (edgeLabel arena) edges
           definitelyPresent = length (filter (== Just Present) edgePresences)
           notSure = length (filter (== Nothing) edgePresences)
           possiblyPresent = definitelyPresent + notSure
@@ -118,7 +118,7 @@ validVertexSoFar arena vertex =
   ((definitelyPresent <= 0) && (0 <= possiblyPresent))
   || ((definitelyPresent <= 2) && (2 <= possiblyPresent))
   where edges = edgesOfVertex arena vertex
-        edgePresences = map (fromJust . flip Data.Map.lookup (arenaEdges arena)) edges
+        edgePresences = map (edgeLabel arena) edges
         definitelyPresent = length (filter (== Just Present) edgePresences)
         notSure = length (filter (== Nothing) edgePresences)
         possiblyPresent = definitelyPresent + notSure
@@ -127,14 +127,17 @@ validSoFar :: Arena (Maybe EdgePresence) -> Bool
 validSoFar arena = all (validFaceSoFar arena) (arenaFaces arena)
                    && all (validVertexSoFar arena) (arenaVertices arena)
   
+edgeLabel :: Arena a -> Edge -> a
+edgeLabel a = fromJust . flip Data.Map.lookup (arenaEdges a)
+
 printArena :: Arena (Maybe EdgePresence) -> IO ()
 printArena arena = do
   flip mapM_ (filter (/= (0, True)) ((,) <$> [0..arenaHeight arena] <*> [True, False])) $ \(y, yIsFace) -> do
     flip mapM_ (filter (/= (0, True)) ((,) <$> [0..arenaWidth arena] <*> [True, False])) $ \(x, xIsFace) -> do
       case (xIsFace, yIsFace) of
         (False, False) -> putStr "."
-        (False, True)  -> putStr (char (fromJust (Data.Map.lookup ((x, y-1), South) (arenaEdges arena))) South)
-        (True, False)  -> putStr (char (fromJust (Data.Map.lookup ((x-1, y), East) (arenaEdges arena)))  East)
+        (False, True)  -> putStr (char (edgeLabel arena ((x, y-1), South)) South)
+        (True, False)  -> putStr (char (edgeLabel arena ((x-1, y), East))  East)
         (True, True)   -> putStr (case (Data.Map.lookup (x, y) (arenaNumbers arena)) of
                                     Nothing -> " "
                                     Just n  -> show n)
