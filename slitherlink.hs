@@ -20,6 +20,18 @@ data StepResult = Solved
                 | Unsolvable
                 | Don'tKnowWhatToDo
 
+refutable :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> Bool
+refutable 0 _  a = immediatelyRefutable a
+refutable n es a =
+    immediatelyRefutable a
+    || any (refutable (n-1) es)
+         (flip concatMap es $ \e ->
+             if isNothing (edgeLabel a e)
+             then [ a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                  , a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+                  ]
+             else [])
+
 step :: Arena (Maybe EdgePresence) -> StepResult
 step a = case undecidedEdges of
   []    -> Solved
@@ -122,6 +134,10 @@ validVertexSoFar arena vertex =
         definitelyPresent = length (filter (== Just Present) edgePresences)
         notSure = length (filter (== Nothing) edgePresences)
         possiblyPresent = definitelyPresent + notSure
+
+
+immediatelyRefutable :: Arena (Maybe EdgePresence) -> Bool
+immediatelyRefutable = not . validSoFar
 
 validSoFar :: Arena (Maybe EdgePresence) -> Bool
 validSoFar arena = all (validFaceSoFar arena) (arenaFaces arena)
