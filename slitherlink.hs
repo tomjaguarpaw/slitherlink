@@ -261,18 +261,17 @@ main = do
   where loop a n = do
           print n
           printArena a
---          line <- getLine
-          let line = ""
-          if line == ""
-            then case stepR a of
-              Step a' -> loop a' (n + 1)
-              Don'tKnowWhatToDo -> putStrLn "Didn't do anything" >> loop a n
-              Unsolvable -> putStrLn "Unsolvable"
-              Solved -> putStrLn "Solved"
-            else let an = case read line of
-                       A e -> a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
-                       P e -> a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                 in loop an n
+          case stepR a of
+            Step a' -> loop a' (n + 1)
+            Don'tKnowWhatToDo -> do
+                putStrLn "Didn't do anything"
+                line <- getLine
+                let an = case read line of
+                           A e -> setPresence a e Absent
+                           P e -> setPresence a e Present
+                loop an n
+            Unsolvable -> putStrLn "Unsolvable"
+            Solved -> putStrLn "Solved"
 
 emptyArena :: Int -> Int -> Arena (Maybe EdgePresence)
 emptyArena x y = Arena x y Data.Map.empty (Data.Map.fromList edges')
