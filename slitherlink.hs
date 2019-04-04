@@ -1,6 +1,7 @@
 import qualified Data.Map
-import Data.List (tails)
+import Data.List (tails, sortBy)
 import Data.Maybe (fromJust, isNothing)
+import Data.Ord (comparing)
 
 data EdgeDirection = South | East deriving (Ord, Eq, Show, Read)
 
@@ -53,7 +54,7 @@ stepR a = case undecidedEdges of
   where undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
         refutationAttempts0 =
           flip concatMap undecidedEdges (\e ->
-            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
             in let aP = setPresence a e Present
                    aA = setPresence a e Absent
                in
@@ -63,7 +64,7 @@ stepR a = case undecidedEdges of
                ])
         refutationAttempts =
           flip concatMap undecidedEdges (\e ->
-            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
             in let aP = setPresence a e Present
                    aA = setPresence a e Absent
                in
@@ -73,7 +74,7 @@ stepR a = case undecidedEdges of
                ])
         refutationAttempts2 =
           flip concatMap undecidedEdges (\e ->
-            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
             in let aP = setPresence a e Present
                    aA = setPresence a e Absent
                in
@@ -83,7 +84,7 @@ stepR a = case undecidedEdges of
                ])
         refutationAttempts3 =
           flip concatMap undecidedEdges (\e ->
-            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
             in let aP = setPresence a e Present
                    aA = setPresence a e Absent
                in
