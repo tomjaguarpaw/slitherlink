@@ -94,7 +94,7 @@ stepR a = case undecidedEdges of
                ])
         refutationAttemptsMany =
           flip concatMap undecidedEdges (\e ->
-            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
             in let aP = setPresence a e Present
                    aA = setPresence a e Absent
                in
