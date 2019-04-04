@@ -115,6 +115,15 @@ edgesOfVertex arena (x, y) = verticals ++ horizontals
                     | y == arenaHeight arena = [((x, y - 1), South)]
                     | otherwise = [((x, y), South), ((x, y - 1), South)]
 
+faceNeighbours :: Arena a -> Face -> [(Face, Edge)]
+faceNeighbours a (x, y) = horizontals ++ verticals
+    where horizontals | x == 1 = [((x + 1, y), ((x, y -1), South))]
+                      | x == arenaWidth a = [((x - 1, y), ((x - 1, y - 1), South))]
+                      | otherwise = [((x + 1, y), ((x, y -1), South)), ((x - 1, y), ((x - 1, y - 1), South))]
+          verticals | y == 1 = [((x, y + 1), ((x-1, y), East))]
+                    | y == arenaHeight a = [((x, y-1), ((x - 1, y - 1), East))]
+                    | otherwise = [((x, y + 1), ((x-1, y), East)), ((x, y-1), ((x - 1, y - 1), East))]
+
 validFaceSoFar :: Arena (Maybe EdgePresence) -> Face -> Bool
 validFaceSoFar arena face = case Data.Map.lookup face (arenaNumbers arena) of
   Nothing     -> True
