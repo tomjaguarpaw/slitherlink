@@ -1,4 +1,5 @@
 import qualified Data.Map
+import Data.List (tails)
 import Data.Maybe (fromJust, isNothing)
 
 data EdgeDirection = South | East deriving (Ord, Eq, Show, Read)
@@ -25,13 +26,16 @@ refutable 0 _  a = immediatelyRefutable a
 refutable n es a =
     immediatelyRefutable a
     || or
-         (flip map es $ \e ->
-             if isNothing (edgeLabel a e)
-             then all (refutable (n-1) es)
-                      [ a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                      , a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
-                      ]
-             else False)
+         (flip map (tails es) $ \some_es ->
+             case some_es of
+               []           -> False
+               (e:other_es) ->
+                  if isNothing (edgeLabel a e)
+                  then all (refutable (n-1) other_es)
+                           [ a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                           , a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+                           ]
+                  else False)
 
 distance :: Edge -> Edge -> Int
 distance ((x1, y1), _) ((x2, y2), _) = abs (x2 - x1) + abs (y2 - y1)
