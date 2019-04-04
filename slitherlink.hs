@@ -325,6 +325,47 @@ hardPuzzle =
   , [  2, __, __,  2, __, __,  3,  3,  2,  3]
   ]
 
+harderPuzzle :: [[Foo]]
+harderPuzzle =
+  [ [ __, __,  2,  2,  2, __, __,  2,  3, __ ]
+  , [  2,  3, __,  2, __, __, __,  2,  1, __ ]
+  , [  2,  3, __,  1,  2,  2,  2, __, __,  2 ]
+  , [ __, __,  2, __,  3, __, __,  2,  3,  2 ]
+  , [ __, __,  2, __, __, __,  2,  0, __,  2 ]
+  , [  3, __,  1,  2, __, __, __,  1, __, __ ]
+  , [  1,  1,  0, __, __,  1, __,  3, __, __ ]
+  , [  1, __, __,  1,  3,  1,  1, __,  3,  3 ]
+  , [ __,  1,  1, __, __, __,  3, __,  2,  1 ]
+  , [ __,  1,  2, __, __,  2,  2,  3, __, __ ]
+  ]
+
+harderPuzzlePartial =
+  foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo harderPuzzle)
+  [ (((9, 4), South), Absent)
+  , (((8, 0), East), Present)
+  , (((9, 0), South), Present)
+  , (((3,0), East), Present)
+  , (((2,0), East), Present)
+  , (((1,1), East), Present)
+  , (((1,1), South), Present)
+  , (((1,2), East), Present)
+  , (((7,6), East), Present)
+  , (((7,6), South), Present)
+  , (((8,7), East), Absent)
+  , (((3,2), East), Absent)
+  , (((4,2), South), Absent)
+  , (((0,7), East), Absent)
+  , (((6,8), East), Present)
+  , (((6,8), South), Present)
+  , (((8,9), South), Present)
+  , (((7,10), East), Present)
+  , (((9,5), East), Absent)
+  , (((0,5), South), Present)
+  , (((2,5), South), Present)
+  , (((0,4), South), Present)
+  , (((2,8), East), Present)
+  ]
+
 arenaOfFoo :: [[Foo]] -> Arena (Maybe EdgePresence)
 arenaOfFoo foo = empty { arenaNumbers = ns }
   where h = length foo
