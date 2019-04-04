@@ -24,13 +24,14 @@ refutable :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> Bool
 refutable 0 _  a = immediatelyRefutable a
 refutable n es a =
     immediatelyRefutable a
-    || any (refutable (n-1) es)
-         (flip concatMap es $ \e ->
+    || or
+         (flip map es $ \e ->
              if isNothing (edgeLabel a e)
-             then [ a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                  , a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
-                  ]
-             else [])
+             then all (refutable (n-1) es)
+                      [ a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                      , a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+                      ]
+             else False)
 
 step :: Arena (Maybe EdgePresence) -> StepResult
 step a = case undecidedEdges of
