@@ -151,7 +151,7 @@ printArena arena = do
   flip mapM_ (filter (/= (0, True)) ((,) <$> [0..arenaHeight arena] <*> [True, False])) $ \(y, yIsFace) -> do
     flip mapM_ (filter (/= (0, True)) ((,) <$> [0..arenaWidth arena] <*> [True, False])) $ \(x, xIsFace) -> do
       case (xIsFace, yIsFace) of
-        (False, False) -> putStr "."
+        (False, False) -> putStr "+"
         (False, True)  -> putStr (char (edgeLabel arena ((x, y-1), South)) South)
         (True, False)  -> putStr (char (edgeLabel arena ((x-1, y), East))  East)
         (True, True)   -> putStr (case (Data.Map.lookup (x, y) (arenaNumbers arena)) of
