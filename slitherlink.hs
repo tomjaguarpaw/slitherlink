@@ -33,6 +33,74 @@ refutable n es a =
                       ]
              else False)
 
+distance :: Edge -> Edge -> Int
+distance ((x1, y1), _) ((x2, y2), _) = abs (x2 - x1) + abs (y2 - y1)
+
+stepR :: Arena (Maybe EdgePresence) -> StepResult
+stepR a = case undecidedEdges of
+  []    -> Solved
+  (_:_) -> case mNext of
+             Nothing   -> Don'tKnowWhatToDo
+             Just next -> Step next
+
+  where undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
+        refutationAttempts0 =
+          flip concatMap undecidedEdges (\e ->
+            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+               in
+               -- Yes, these go the opposite way
+               [ (refutable 0 nearby aP, aA)
+               , (refutable 0 nearby aA, aP)
+               ])
+        refutationAttempts =
+          flip concatMap undecidedEdges (\e ->
+            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+               in
+               -- Yes, these go the opposite way
+               [ (refutable 1 nearby aP, aA)
+               , (refutable 1 nearby aA, aP)
+               ])
+        refutationAttempts2 =
+          flip concatMap undecidedEdges (\e ->
+            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+               in
+               -- Yes, these go the opposite way
+               [ (refutable 2 nearby aP, aA)
+               , (refutable 2 nearby aA, aP)
+               ])
+        refutationAttempts3 =
+          flip concatMap undecidedEdges (\e ->
+            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+               in
+               -- Yes, these go the opposite way
+               [ (refutable 3 nearby aP, aA)
+               , (refutable 3 nearby aA, aP)
+               ])
+        refutationAttemptsMany =
+          flip concatMap undecidedEdges (\e ->
+            let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
+                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+               in
+               -- Yes, these go the opposite way
+               [ (refutable 5 nearby aP, aA)
+               , (refutable 5 nearby aA, aP)
+               ])
+        mNext = fmap snd (firstThat fst (refutationAttempts0 ++ refutationAttempts ++ refutationAttempts2 ++ refutationAttempts3 ++ refutationAttemptsMany))
+
+firstThat :: (a -> Bool) -> [a] -> Maybe a
+firstThat _ [] = Nothing
+firstThat p (x:xs) = if p x then Just x else firstThat p xs
+
+
 step :: Arena (Maybe EdgePresence) -> StepResult
 step a = case undecidedEdges of
   []    -> Solved
@@ -185,16 +253,12 @@ main = do
   where loop a n = do
           print n
           printArena a
-          line <- getLine
-
+--          line <- getLine
+          let line = ""
           if line == ""
-            then case step a of
+            then case stepR a of
               Step a' -> loop a' (n + 1)
-              Don'tKnowWhatToDo -> case step2 a of
-                Step a' -> loop a' (n + 1)
-                Don'tKnowWhatToDo -> putStrLn "Didn't do anything" >> loop a (n + 1)
-                Unsolvable -> putStrLn "Unsolvable"
-                Solved -> putStrLn "Solved"
+              Don'tKnowWhatToDo -> putStrLn "Didn't do anything" >> loop a n
               Unsolvable -> putStrLn "Unsolvable"
               Solved -> putStrLn "Solved"
             else let an = case read line of
