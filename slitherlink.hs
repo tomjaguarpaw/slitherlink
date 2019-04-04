@@ -21,6 +21,9 @@ data StepResult = Solved
                 | Unsolvable
                 | Don'tKnowWhatToDo
 
+setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Maybe edgePresence)
+setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
+
 refutable :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> Bool
 refutable 0 _  a = immediatelyRefutable a
 refutable n es a =
@@ -32,8 +35,8 @@ refutable n es a =
                (e:other_es) ->
                   if isNothing (edgeLabel a e)
                   then all (refutable (n-1) other_es)
-                           [ a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                           , a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+                           [ setPresence a e Present
+                           , setPresence a e Absent
                            ]
                   else False)
 
@@ -51,8 +54,8 @@ stepR a = case undecidedEdges of
         refutationAttempts0 =
           flip concatMap undecidedEdges (\e ->
             let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+            in let aP = setPresence a e Present
+                   aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
                [ (refutable 0 nearby aP, aA)
@@ -61,8 +64,8 @@ stepR a = case undecidedEdges of
         refutationAttempts =
           flip concatMap undecidedEdges (\e ->
             let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+            in let aP = setPresence a e Present
+                   aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
                [ (refutable 1 nearby aP, aA)
@@ -71,8 +74,8 @@ stepR a = case undecidedEdges of
         refutationAttempts2 =
           flip concatMap undecidedEdges (\e ->
             let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+            in let aP = setPresence a e Present
+                   aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
                [ (refutable 2 nearby aP, aA)
@@ -81,8 +84,8 @@ stepR a = case undecidedEdges of
         refutationAttempts3 =
           flip concatMap undecidedEdges (\e ->
             let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+            in let aP = setPresence a e Present
+                   aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
                [ (refutable 3 nearby aP, aA)
@@ -91,8 +94,8 @@ stepR a = case undecidedEdges of
         refutationAttemptsMany =
           flip concatMap undecidedEdges (\e ->
             let nearby = filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = a { arenaEdges = Data.Map.insert e (Just Present) (arenaEdges a) }
-                   aA = a { arenaEdges = Data.Map.insert e (Just Absent)  (arenaEdges a) }
+            in let aP = setPresence a e Present
+                   aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
                [ (refutable 5 nearby aP, aA)
