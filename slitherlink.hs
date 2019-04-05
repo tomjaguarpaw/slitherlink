@@ -266,14 +266,12 @@ main = do
             Don'tKnowWhatToDo -> do
                 putStrLn "Didn't do anything"
 
-                let looper = do
+                fix (\continue -> do
                     line <- getLine
                     case readMaybe line of
                       Just (A e) -> loop (setPresence a e Absent) n
                       Just (P e) -> loop (setPresence a e Present) n
-                      Nothing    -> looper
-
-                looper
+                      Nothing    -> continue)
 
             Unsolvable -> putStrLn "Unsolvable"
             Solved -> putStrLn "Solved"
