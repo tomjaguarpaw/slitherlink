@@ -265,11 +265,16 @@ main = do
             Step a' -> loop a' (n + 1)
             Don'tKnowWhatToDo -> do
                 putStrLn "Didn't do anything"
-                line <- getLine
-                let an = case read line of
-                           A e -> setPresence a e Absent
-                           P e -> setPresence a e Present
-                loop an n
+
+                let looper = do
+                    line <- getLine
+                    case readMaybe line of
+                      Just (A e) -> loop (setPresence a e Absent) n
+                      Just (P e) -> loop (setPresence a e Present) n
+                      Nothing    -> looper
+
+                looper
+
             Unsolvable -> putStrLn "Unsolvable"
             Solved -> putStrLn "Solved"
 
