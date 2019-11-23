@@ -27,21 +27,23 @@ data StepResult = Solved
 setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Maybe edgePresence)
 setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
 
-refutable :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> Bool
-refutable 0 _  a = immediatelyRefutable a
-refutable n es a =
-    immediatelyRefutable a
+refutableBy :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> (Edge, EdgePresence)
+            -> Bool
+refutableBy 0 _  a' eep = immediatelyRefutableBy a' eep
+refutableBy n es a' eep =
+    immediatelyRefutableBy a' eep
     || or
          (flip map (tails es) $ \some_es ->
              case some_es of
                []           -> False
                (e:other_es) ->
                   if isNothing (edgeLabel a e)
-                  then all (refutable (n-1) other_es)
-                           [ setPresence a e Present
-                           , setPresence a e Absent
+                  then all (refutableBy (n-1) other_es a)
+                           [ (e, Present)
+                           , (e, Absent)
                            ]
                   else False)
+  where a = uncurry (setPresence a') eep
 
 distance :: Edge -> Edge -> Int
 distance ((x1, y1), _) ((x2, y2), _) = abs (x2 - x1) + abs (y2 - y1)
@@ -61,8 +63,8 @@ stepR a = case undecidedEdges of
                    aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
-               [ (refutable 0 nearby aP, aA)
-               , (refutable 0 nearby aA, aP)
+               [ (refutableBy 0 nearby a (e, Present), aA)
+               , (refutableBy 0 nearby a (e, Absent),  aP)
                ])
         refutationAttempts =
           flip concatMap undecidedEdges (\e ->
@@ -71,8 +73,8 @@ stepR a = case undecidedEdges of
                    aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
-               [ (refutable 1 nearby aP, aA)
-               , (refutable 1 nearby aA, aP)
+               [ (refutableBy 1 nearby a (e, Present), aA)
+               , (refutableBy 1 nearby a (e, Absent),  aP)
                ])
         refutationAttempts2 =
           flip concatMap undecidedEdges (\e ->
@@ -81,8 +83,8 @@ stepR a = case undecidedEdges of
                    aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
-               [ (refutable 2 nearby aP, aA)
-               , (refutable 2 nearby aA, aP)
+               [ (refutableBy 2 nearby a (e, Present), aA)
+               , (refutableBy 2 nearby a (e, Absent),  aP)
                ])
         refutationAttempts3 =
           flip concatMap undecidedEdges (\e ->
@@ -91,8 +93,8 @@ stepR a = case undecidedEdges of
                    aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
-               [ (refutable 3 nearby aP, aA)
-               , (refutable 3 nearby aA, aP)
+               [ (refutableBy 3 nearby a (e, Present), aA)
+               , (refutableBy 3 nearby a (e, Absent),  aP)
                ])
         refutationAttemptsMany =
           flip concatMap undecidedEdges (\e ->
@@ -101,8 +103,8 @@ stepR a = case undecidedEdges of
                    aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
-               [ (refutable 5 nearby aP, aA)
-               , (refutable 5 nearby aA, aP)
+               [ (refutableBy 5 nearby a (e, Present), aA)
+               , (refutableBy 5 nearby a (e, Absent),  aP)
                ])
         mNext = fmap snd (firstThat fst (refutationAttempts0 ++ refutationAttempts ++ refutationAttempts2 ++ refutationAttempts3 ++ refutationAttemptsMany))
 
@@ -151,6 +153,24 @@ faceNeighbours a (x, y) = horizontals ++ verticals
                     | y == arenaHeight a = [((x, y-1), ((x - 1, y - 1), East))]
                     | otherwise = [((x, y + 1), ((x-1, y), East)), ((x, y-1), ((x - 1, y - 1), East))]
 
+faceInArena :: Arena a -> Face -> Bool
+faceInArena arena (x, y) =
+  and [ x >= 1
+      , y >= 1
+      , x <= arenaWidth arena
+      , y <= arenaHeight arena
+      ]
+
+facesOfEdge :: Arena a -> Edge -> [Face]
+facesOfEdge a ((x, y), dir) = case dir of
+  East  -> filter (faceInArena a) [(x+1, y), (x+1, y+1)]
+  South -> filter (faceInArena a) [(x, y+1), (x+1, y+1)]
+
+verticesOfEdge :: Arena a -> Edge -> [Vertex]
+verticesOfEdge a ((x, y), dir) = case dir of
+  East  -> [(x, y), (x + 1, y)]
+  South -> [(x, y), (x, y + 1)]
+
 validFaceSoFar :: Arena (Maybe EdgePresence) -> Face -> Bool
 validFaceSoFar arena face = case Data.Map.lookup face (arenaNumbers arena) of
   Nothing     -> True
@@ -172,8 +192,19 @@ validVertexSoFar arena vertex =
         possiblyPresent = definitelyPresent + notSure
 
 
-immediatelyRefutable :: Arena (Maybe EdgePresence) -> Bool
-immediatelyRefutable = not . validSoFar
+immediatelyRefutableBy :: Arena (Maybe EdgePresence) -> (Edge, EdgePresence)
+                       -> Bool
+immediatelyRefutableBy a eep =
+  not $ validEvenWith a eep
+
+-- When `validSoFar arena` we have that
+--
+-- `validSoFar arenaWith == validEvenWith arena eep`
+validEvenWith :: Arena (Maybe EdgePresence) -> (Edge, EdgePresence) -> Bool
+validEvenWith arena (e, ep) =
+  all (validFaceSoFar arenaWith) (facesOfEdge arenaWith e)
+  && all (validVertexSoFar arenaWith) (verticesOfEdge arenaWith e)
+  where arenaWith = setPresence arena e ep
 
 validSoFar :: Arena (Maybe EdgePresence) -> Bool
 validSoFar arena = all (validFaceSoFar arena) (arenaFaces arena)
