@@ -256,17 +256,18 @@ char (Just Absent)  East  = " "
 
 data Choice = P Edge | A Edge deriving Read
 
+(^>) :: (a -> b -> c) -> b -> a -> c
+(^>) = flip
+
 main :: IO ()
 main = do
-  loop (arenaOfFoo hardPuzzle) 0
-
-  where loop a n = do
+  fix ^> pid21153partial ^> 0 $ \loop a n -> do
           print n
           printArena a
           case stepR a of
             Step a' -> loop a' (n + 1)
             Don'tKnowWhatToDo -> do
-                putStrLn "Didn't do anything"
+                putStrLn "Don't know what to do"
 
                 fix (\continue -> do
                     line <- getLine
@@ -276,7 +277,7 @@ main = do
                       Nothing    -> continue)
 
             Unsolvable -> putStrLn "Unsolvable"
-            Solved -> putStrLn "Solved"
+            Solved     -> putStrLn "Solved"
 
 emptyArena :: Int -> Int -> Arena (Maybe EdgePresence)
 emptyArena x y = Arena x y Data.Map.empty (Data.Map.fromList edges')
