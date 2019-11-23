@@ -2,6 +2,8 @@ import qualified Data.Map
 import Data.List (tails, sortBy)
 import Data.Maybe (fromJust, isNothing)
 import Data.Ord (comparing)
+import Text.Read (readMaybe)
+import Data.Function (fix)
 
 data EdgeDirection = South | East deriving (Ord, Eq, Show, Read)
 
