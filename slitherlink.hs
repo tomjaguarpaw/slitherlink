@@ -111,58 +111,6 @@ firstThat _ [] = Nothing
 firstThat p (x:xs) = if p x then Just x else firstThat p xs
 
 
-step :: Arena (Maybe EdgePresence) -> StepResult
-step a = case undecidedEdges of
-  []    -> Solved
-  (_:_) -> go undecidedEdges
-
-  where go []     = Don'tKnowWhatToDo
-        go (x:xs) =
-          let aWith    = a { arenaEdges = Data.Map.insert x (Just Present) (arenaEdges a) }
-              aWithout = a { arenaEdges = Data.Map.insert x (Just Absent)  (arenaEdges a) }
-          in case (validSoFar aWith, validSoFar aWithout) of
-            (True, True)   -> go xs
-            (False, False) -> Unsolvable
-            (True, False)  -> Step aWith
-            (False, True)  -> Step aWithout
-
-        undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
-
-step2 :: Arena (Maybe EdgePresence) -> StepResult
-step2 a = case undecidedEdgePairs of
-  []    -> Solved
-  (_:_) -> go undecidedEdgePairs
-
-  where go []     = Don'tKnowWhatToDo
-        go ((x1,x2):xs) =
-          let aNeither = a { arenaEdges = Data.Map.insert x1 (Just Absent)
-                                          $ Data.Map.insert x2 (Just Absent)
-                                          $ (arenaEdges a) }
-              aFirst   = a { arenaEdges = Data.Map.insert x1 (Just Present)
-                                          $ Data.Map.insert x2 (Just Absent)
-                                          $ (arenaEdges a) }
-              aSecond  = a { arenaEdges = Data.Map.insert x1 (Just Absent)
-                                          $ Data.Map.insert x2 (Just Present)
-                                          $ (arenaEdges a) }
-              aBoth    = a { arenaEdges = Data.Map.insert x1 (Just Present)
-                                          $ Data.Map.insert x2 (Just Present)
-                                          $ (arenaEdges a) }
-
-          in case filter validSoFar [aNeither, aFirst, aSecond, aBoth] of
-            []      -> Unsolvable
-            [only]  -> Step only
-            (_:_:_) -> go xs
-
-        undecidedEdgePairs :: [(Edge, Edge)]
-        undecidedEdgePairs = do
-          vertex <- arenaVertices a
-          let undecidedEdges = filter (isNothing . edgeLabel a) (edgesOfVertex a vertex)
-          edge1  <- undecidedEdges
-          edge2  <- undecidedEdges
-          if edge1 /= edge2
-          then return (edge1, edge2)
-          else []
-
 arenaEdgesT :: Arena a -> [Edge]
 arenaEdgesT a = edgesHW (arenaWidth a) (arenaHeight a)
 
