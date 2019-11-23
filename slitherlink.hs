@@ -221,7 +221,11 @@ showArena arena =
   flip concatMap (filter (/= (0, True)) ((,) <$> [0..arenaHeight arena] <*> [True, False])) $ \(y, yIsFace) -> do
     (flip concatMap (filter (/= (0, True)) ((,) <$> [0..arenaWidth arena] <*> [True, False])) $ \(x, xIsFace) -> do
       case (xIsFace, yIsFace) of
-        (False, False) -> "+"
+        (False, False) -> case length (filter ((== Just Present) . edgeLabel arena) (edgesOfVertex arena (x, y))) of
+                            2 -> "\x001b[31;1m+\x001b[0m"
+                            1 -> "\x001b[32;1m+\x001b[0m"
+                            0 -> "+"
+                            _ -> error "Impossible number of edges"
         (False, True)  -> char (edgeLabel arena ((x, y-1), South)) South
         (True, False)  -> char (edgeLabel arena ((x-1, y), East))  East
         (True, True)   -> case (Data.Map.lookup (x, y) (arenaNumbers arena)) of
@@ -231,8 +235,8 @@ showArena arena =
 
 char :: Maybe EdgePresence -> EdgeDirection -> String
 char Nothing _ = "."
-char (Just Present) South = "|"
-char (Just Present) East  = "-"
+char (Just Present) South = "\x001b[31;1m|\x001b[0m"
+char (Just Present) East  = "\x001b[31;1m-\x001b[0m"
 char (Just Absent)  South = " "
 char (Just Absent)  East  = " "
 
