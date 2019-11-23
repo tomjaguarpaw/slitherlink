@@ -228,7 +228,7 @@ immediatelyRefutable = not . validSoFar
 validSoFar :: Arena (Maybe EdgePresence) -> Bool
 validSoFar arena = all (validFaceSoFar arena) (arenaFaces arena)
                    && all (validVertexSoFar arena) (arenaVertices arena)
-  
+
 edgeLabel :: Arena a -> Edge -> a
 edgeLabel a = fromJust . flip Data.Map.lookup (arenaEdges a)
 
