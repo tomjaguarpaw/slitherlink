@@ -306,6 +306,20 @@ instance Num Foo where
 __ :: Foo
 __ = Foo Nothing
 
+pid21153 :: [[Foo]]
+pid21153 =
+  [ [  3,  3,  3,  2,  0,  1,  3,  2,  3,  3]
+  , [ __, __,  0, __,  1,  1, __,  1, __, __]
+  , [  2, __,  1, __, __, __, __,  2, __,  3]
+  , [  2,  2, __, __,  2,  1, __, __,  2,  1]
+  , [  3,  2, __,  2, __, __,  1, __,  3,  1]
+  , [  2,  2, __,  2, __, __,  2, __,  2,  1]
+  , [  1,  2, __, __,  2,  1, __, __,  1,  3]
+  , [  3, __,  2, __, __, __, __,  3, __,  3]
+  , [ __, __,  2, __,  1,  0, __,  1, __, __]
+  , [  3,  2,  1,  1,  1,  2,  3,  3,  3,  3]
+  ]
+
 puzzle :: [[Foo]]
 puzzle = [ [__, __,  3,  3, __]
          , [ 2, __,  0,  2,  1]
@@ -368,6 +382,14 @@ harderPuzzlePartial =
   , (((0,4), South), Present)
   , (((2,8), East), Present)
   ]
+
+pid21153partial =
+  foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo pid21153)
+  [ (((9, 0), South), Present)
+  , (((3, 6), South), Absent)
+  , (((6, 7), East),  Absent)
+  ]
+
 
 arenaOfFoo :: [[Foo]] -> Arena (Maybe EdgePresence)
 arenaOfFoo foo = empty { arenaNumbers = ns }
