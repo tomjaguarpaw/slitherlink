@@ -235,17 +235,20 @@ edgeLabel :: Arena a -> Edge -> a
 edgeLabel a = fromJust . flip Data.Map.lookup (arenaEdges a)
 
 printArena :: Arena (Maybe EdgePresence) -> IO ()
-printArena arena = do
-  flip mapM_ (filter (/= (0, True)) ((,) <$> [0..arenaHeight arena] <*> [True, False])) $ \(y, yIsFace) -> do
-    flip mapM_ (filter (/= (0, True)) ((,) <$> [0..arenaWidth arena] <*> [True, False])) $ \(x, xIsFace) -> do
+printArena = putStr . showArena
+
+showArena :: Arena (Maybe EdgePresence) -> String
+showArena arena =
+  flip concatMap (filter (/= (0, True)) ((,) <$> [0..arenaHeight arena] <*> [True, False])) $ \(y, yIsFace) -> do
+    (flip concatMap (filter (/= (0, True)) ((,) <$> [0..arenaWidth arena] <*> [True, False])) $ \(x, xIsFace) -> do
       case (xIsFace, yIsFace) of
-        (False, False) -> putStr "+"
-        (False, True)  -> putStr (char (edgeLabel arena ((x, y-1), South)) South)
-        (True, False)  -> putStr (char (edgeLabel arena ((x-1, y), East))  East)
-        (True, True)   -> putStr (case (Data.Map.lookup (x, y) (arenaNumbers arena)) of
-                                    Nothing -> " "
-                                    Just n  -> show n)
-    putStr "\n"
+        (False, False) -> "+"
+        (False, True)  -> char (edgeLabel arena ((x, y-1), South)) South
+        (True, False)  -> char (edgeLabel arena ((x-1, y), East))  East
+        (True, True)   -> case (Data.Map.lookup (x, y) (arenaNumbers arena)) of
+                            Nothing -> " "
+                            Just n  -> show n)
+      ++ "\n"
 
 char :: Maybe EdgePresence -> EdgeDirection -> String
 char Nothing _ = "."
