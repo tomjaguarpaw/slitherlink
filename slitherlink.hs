@@ -1,3 +1,8 @@
+{-# LANGUAGE LambdaCase #-}
+--{-# OPTIONS_GHC -Wall #-}
+
+import Debug.Trace
+
 import qualified Data.Map
 import Data.List (tails, sortBy)
 import Data.Maybe (fromJust, isNothing)
@@ -24,8 +29,46 @@ data StepResult = Solved
                 | Unsolvable
                 | Don'tKnowWhatToDo
 
+data Refutable2Result = Unsure
+                      | Implication (Arena (Maybe EdgePresence))
+                      | Inconsistent
+
+(&&&) :: Refutable2Result -> Refutable2Result -> Refutable2Result
+x &&& y = case x of
+  Unsure -> Unsure
+  Inconsistent -> y
+  Implication a -> case y of
+    Unsure        -> Unsure
+    Inconsistent  -> Implication a
+    Implication _ -> Unsure
+
+(|||) :: Refutable2Result -> Refutable2Result -> Refutable2Result
+x ||| y = case x of
+  Unsure        -> y
+  Inconsistent  -> Inconsistent
+  Implication a -> Implication a
+
 setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Maybe edgePresence)
 setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
+
+-- Assuming the arena is not immediately refutable
+refutable2 :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> Refutable2Result
+refutable2 _ []     _ = Unsure
+refutable2 0 _      _ = Unsure
+refutable2 n (e:es) a = branch ||| recurseSublist
+  where recursePresent n' = refutable2 n' (byDistance es) (setPresence a e Present)
+        recurseAbsent n'  = refutable2 n' (byDistance es) (setPresence a e Absent)
+        recurseSublist    = refutable2 n es a
+        byDistance        = sortBy (comparing (distance e))
+
+        branch = case (immediatelyRefutableBy a (e, Present),
+                       immediatelyRefutableBy a (e, Absent)) of
+          (True, True)   -> Inconsistent
+          (False, True)  -> recursePresent n
+                            ||| Implication (setPresence a e Present)
+          (True, False)  -> recurseAbsent n
+                            ||| Implication (setPresence a e Absent)
+          (False, False) -> recursePresent (n-1) &&& recurseAbsent (n-1)
 
 refutableBy :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> (Edge, EdgePresence)
             -> Bool
@@ -47,6 +90,8 @@ refutableBy n es a' eep =
 
 distance :: Edge -> Edge -> Int
 distance ((x1, y1), _) ((x2, y2), _) = abs (x2 - x1) + abs (y2 - y1)
+
+
 
 stepR :: Arena (Maybe EdgePresence) -> StepResult
 stepR a = case undecidedEdges of
@@ -98,13 +143,13 @@ stepR a = case undecidedEdges of
                ])
         refutationAttemptsMany =
           flip concatMap undecidedEdges (\e ->
-            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
+            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 3) undecidedEdges
             in let aP = setPresence a e Present
                    aA = setPresence a e Absent
                in
                -- Yes, these go the opposite way
-               [ (refutableBy 5 nearby a (e, Present), aA)
-               , (refutableBy 5 nearby a (e, Absent),  aP)
+               [ (refutableBy 4 nearby a (e, Present), aA)
+               , (refutableBy 4 nearby a (e, Absent),  aP)
                ])
         mNext = fmap snd (firstThat fst (refutationAttempts0 ++ refutationAttempts ++ refutationAttempts2 ++ refutationAttempts3 ++ refutationAttemptsMany))
 
@@ -167,7 +212,7 @@ facesOfEdge a ((x, y), dir) = case dir of
   South -> filter (faceInArena a) [(x, y+1), (x+1, y+1)]
 
 verticesOfEdge :: Arena a -> Edge -> [Vertex]
-verticesOfEdge a ((x, y), dir) = case dir of
+verticesOfEdge _ ((x, y), dir) = case dir of
   East  -> [(x, y), (x + 1, y)]
   South -> [(x, y), (x, y + 1)]
 
@@ -247,23 +292,26 @@ data Choice = P Edge | A Edge deriving Read
 
 main :: IO ()
 main = do
-  fix ^> pid23828partial ^> 0 $ \loop a n -> do
+  fix ^> arenaOfFoo pid21153 ^> 0 ^> 1 $ \loop a n d -> do
           print n
           printArena a
-          case stepR a of
-            Step a' -> loop a' (n + 1)
-            Don'tKnowWhatToDo -> do
-                putStrLn "Don't know what to do"
+          let undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
 
+          fix ^> d $ (\refute d' -> do
+            putStrLn ("Refuting at depth: " ++ show d')
+            case refutable2 d' undecidedEdges a of
+              Unsure         -> refute (d'+1)
+              Inconsistent   -> error "Oh dear it was inconsistent"
+              Implication a' -> loop a' (n+1) 0)
+
+{-
                 fix (\continue -> do
                     line <- getLine
                     case readMaybe line of
                       Just (A e) -> loop (setPresence a e Absent) n
                       Just (P e) -> loop (setPresence a e Present) n
                       Nothing    -> continue)
-
-            Unsolvable -> putStrLn "Unsolvable"
-            Solved     -> putStrLn "Solved"
+-}
 
 emptyArena :: Int -> Int -> Arena (Maybe EdgePresence)
 emptyArena x y = Arena x y Data.Map.empty (Data.Map.fromList edges')
@@ -419,6 +467,7 @@ pid22740partial =
 
 pid23828partial =
   foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo pid23828)
+  (take 0
   [ (((5, 7), East),  Present)
   , (((8, 3), South), Present)
   , (((9, 3), South), Present)
@@ -426,8 +475,7 @@ pid23828partial =
   , (((8, 5), East), Present)
   , (((9, 5), South), Present)
   ]
-
-
+  )
 
 arenaOfFoo :: [[Foo]] -> Arena (Maybe EdgePresence)
 arenaOfFoo foo = empty { arenaNumbers = ns }
