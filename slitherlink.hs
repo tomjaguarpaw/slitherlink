@@ -71,7 +71,8 @@ refutable2 n e es a = branch {- ||| recurseSublist -}
         foo :: [(Edge, [Edge])]
         foo = (filter ((<= 2) . distance e . fst)
                . mapMaybe (\case [] -> Nothing; (x:xs) -> Just (x, xs))
-               . tails)
+               . tails
+               . sortBy (comparing (distance e)))
               es
 
         --recurseSublist    = refutable2 n es a
