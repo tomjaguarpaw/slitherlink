@@ -348,24 +348,24 @@ edgesHW x y = edges
           then [((xi,yi), South)]
           else []
 
-data Foo = Foo { unFoo :: Maybe Int }
+data FaceLabel = FaceLabel { unFaceLabel :: Maybe Int }
 
-instance Num Foo where
-  fromInteger = Foo . Just . fromInteger
+instance Num FaceLabel where
+  fromInteger = FaceLabel . Just . fromInteger
   (+) = undefined
   (*) = undefined
   abs = undefined
   signum = undefined
   negate = undefined
 
-__ :: Foo
-__ = Foo Nothing
+__ :: FaceLabel
+__ = FaceLabel Nothing
 
-corner2 :: [[Foo]]
+corner2 :: [[FaceLabel]]
 corner2 = [ [  2 ] ++ replicate 2 __ ]
           ++ replicate 2 (replicate 3 __)
 
-pid21153 :: [[Foo]]
+pid21153 :: [[FaceLabel]]
 pid21153 =
   [ [  3,  3,  3,  2,  0,  1,  3,  2,  3,  3]
   , [ __, __,  0, __,  1,  1, __,  1, __, __]
@@ -380,24 +380,24 @@ pid21153 =
   ]
 
 -- Easy
-pid21154 :: [[Foo]]
+pid21154 :: [[FaceLabel]]
 pid21154 = blah 10 10 ".23.21.31.2...32...322..21..123..2..3..2.2.3230.1..3.2023.3.1..3..2..232..23..321...03...2.33.32.33."
 
 -- Medium
-pid22739 :: [[Foo]]
+pid22739 :: [[FaceLabel]]
 pid22739 = blah 10 10 "321.2.31.3..2...12.132..1...0231.0.02......2...2.13.2...3......32.3.1311...1..232.13...2..1.22.2.232"
 
 -- Hard
-pid23825 :: [[Foo]]
+pid23825 :: [[FaceLabel]]
 pid23825 = blah 10 10 ".21.3...3.3..3.311.3.11....2.1.1...1..1..2.0.....20.....3.3..3..3...2.3.1....01.2.222.3..1.3...3.22."
 
 -- Very hard
-pid23630 :: [[Foo]]
+pid23630 :: [[FaceLabel]]
 pid23630 = blah 10 10 "32.3..2.231..1213..311......13....21....223.32.230122.11.122....22....32......122..3322..132.1..2.21"
 
-blah :: Int -> a -> String -> [[Foo]]
-blah a _ = chunksOf a . map toFoo
-  where toFoo = \case
+blah :: Int -> a -> String -> [[FaceLabel]]
+blah a _ = chunksOf a . map toFaceLabel
+  where toFaceLabel = \case
           '0' -> 0
           '1' -> 1
           '2' -> 2
@@ -405,7 +405,7 @@ blah a _ = chunksOf a . map toFoo
           '.' -> __
           c   -> error ("blah: Unexpected character: " ++ show c)
 
-pid22740 :: [[Foo]]
+pid22740 :: [[FaceLabel]]
 pid22740 =
   [ [  2,  2,  2,  3,  2,  2, __,  1,  3,  2]
   , [  2,  1, __,  1, __,  2, __, __,  3,  2]
@@ -419,7 +419,7 @@ pid22740 =
   , [  3,  3,  3, __,  2,  2,  2,  3,  2,  2]
   ]
 
-pid23828 :: [[Foo]]
+pid23828 :: [[FaceLabel]]
 pid23828 =
   [ [  2,  2, __, __,  1,  0, __, __,  1,  2]
   , [ __, __,  3, __, __, __, __,  0, __, __]
@@ -433,7 +433,7 @@ pid23828 =
   , [  3,  1, __, __,  2,  3, __, __,  2,  1]
   ]
 
-puzzle :: [[Foo]]
+puzzle :: [[FaceLabel]]
 puzzle = [ [__, __,  3,  3, __]
          , [ 2, __,  0,  2,  1]
          , [__, __,  2, __,  2]
@@ -441,7 +441,7 @@ puzzle = [ [__, __,  3,  3, __]
          , [ 3,  1,  2,  2,  3]
          ]
 
-hardPuzzle :: [[Foo]]
+hardPuzzle :: [[FaceLabel]]
 hardPuzzle =
   [ [  3,  2,  2,  2, __, __,  2, __, __,  2]
   , [ __, __,  2,  1,  3, __,  3, __, __,  3]
@@ -455,7 +455,7 @@ hardPuzzle =
   , [  2, __, __,  2, __, __,  3,  3,  2,  3]
   ]
 
-harderPuzzle :: [[Foo]]
+harderPuzzle :: [[FaceLabel]]
 harderPuzzle =
   [ [ __, __,  2,  2,  2, __, __,  2,  3, __ ]
   , [  2,  3, __,  2, __, __, __,  2,  1, __ ]
@@ -470,7 +470,7 @@ harderPuzzle =
   ]
 
 harderPuzzlePartial =
-  foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo harderPuzzle)
+  foldl (\a (e, p) -> setPresence a e p) (arenaOfFaceLabels harderPuzzle)
   [ (((9, 4), South), Absent)
   , (((8, 0), East), Present)
   , (((9, 0), South), Present)
@@ -497,7 +497,7 @@ harderPuzzlePartial =
   ]
 
 pid21153partial =
-  foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo pid21153)
+  foldl (\a (e, p) -> setPresence a e p) (arenaOfFaceLabels pid21153)
   [ (((9, 0), South), Present)
   , (((3, 6), South), Absent)
   , (((6, 7), East),  Absent)
@@ -505,7 +505,7 @@ pid21153partial =
   ]
 
 pid22740partial =
-  foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo pid22740)
+  foldl (\a (e, p) -> setPresence a e p) (arenaOfFaceLabels pid22740)
   [ (((2, 8), East),  Absent)
   , (((8, 1), East),  Present)
   , (((0, 0), East),  Absent)
@@ -514,7 +514,7 @@ pid22740partial =
   ]
 
 pid23828partial =
-  foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo pid23828)
+  foldl (\a (e, p) -> setPresence a e p) (arenaOfFaceLabels pid23828)
   [ (((5, 7), East),  Present)
   , (((8, 3), South), Present)
   , (((9, 3), South), Present)
@@ -523,14 +523,14 @@ pid23828partial =
   , (((9, 5), South), Present)
   ]
 
-arenaOfFoo :: [[Foo]] -> Arena (Maybe EdgePresence)
-arenaOfFoo foo = empty { arenaNumbers = ns }
+arenaOfFaceLabels :: [[FaceLabel]] -> Arena (Maybe EdgePresence)
+arenaOfFaceLabels foo = empty { arenaNumbers = ns }
   where h = length foo
         w = length (foo !! 0)
         empty = emptyArena h w
         ns = Data.Map.fromList $ do
           (y, row)  <- zip [1..] foo
           (x, foon) <- zip [1..] row
-          case unFoo foon of
+          case unFaceLabel foon of
             Nothing -> []
             Just n  -> return ((x, y), n)
