@@ -5,10 +5,11 @@ import Debug.Trace
 
 import qualified Data.Map
 import Data.List (tails, sortBy, (\\), intersect)
-import Data.Maybe (fromJust, isNothing, mapMaybe)
+import Data.Maybe (fromJust, isNothing, isJust, mapMaybe)
 import Data.Ord (comparing)
 import Text.Read (readMaybe)
 import Data.Function (fix)
+import Data.Foldable (toList)
 
 data EdgeDirection = South | East deriving (Ord, Eq, Show, Read)
 
@@ -170,10 +171,13 @@ facesOfEdge a ((x, y), dir) = case dir of
   East  -> filter (faceInArena a) [(x+1, y), (x+1, y+1)]
   South -> filter (faceInArena a) [(x, y+1), (x+1, y+1)]
 
+verticesOfEdgePair :: Arena a -> Edge -> (Vertex, Vertex)
+verticesOfEdgePair _ ((x, y), dir) = case dir of
+  East  -> ((x, y), (x + 1, y))
+  South -> ((x, y), (x, y + 1))
+
 verticesOfEdge :: Arena a -> Edge -> [Vertex]
-verticesOfEdge _ ((x, y), dir) = case dir of
-  East  -> [(x, y), (x + 1, y)]
-  South -> [(x, y), (x, y + 1)]
+verticesOfEdge a e = case verticesOfEdgePair a e of (v1, v2) -> [v1, v2]
 
 validFaceSoFar :: Arena (Maybe EdgePresence) -> Face -> Bool
 validFaceSoFar arena face = case Data.Map.lookup face (arenaNumbers arena) of
@@ -208,11 +212,47 @@ validEvenWith :: Arena (Maybe EdgePresence) -> (Edge, EdgePresence) -> Bool
 validEvenWith arena (e, ep) =
   all (validFaceSoFar arenaWith) (facesOfEdge arenaWith e)
   && all (validVertexSoFar arenaWith) (verticesOfEdge arenaWith e)
+  && (ep == Absent
+      || not (uncurry (verticesAreConnected arena Nothing)
+                      (verticesOfEdgePair arena e)))
   where arenaWith = setPresence arena e ep
 
 validSoFar :: Arena (Maybe EdgePresence) -> Bool
 validSoFar arena = all (validFaceSoFar arena) (arenaFaces arena)
                    && all (validVertexSoFar arena) (arenaVertices arena)
+
+-- Assumption that a is valid up to loops and that neither v1 nor v2
+-- has more than one edge coming out of it.
+--
+-- I'm really not too confident about this
+verticesAreConnected a ignored v1 v2 =
+  they'reTheSame || v1NextConnected
+
+  where they'reTheSame = v1 == v2
+        v1Out = case filter isPresent (edgesOfVertex a v1)
+                     \\ toList ignored of
+          []    -> Nothing
+          [e1]  -> Just e1
+          a@(_:_) -> error ("Didn't expect more than one edge out of v1\n"
+                            ++ show v1 ++ "\n"
+                            ++ show v2 ++ "\n"
+                            ++ show ignored ++ "\n"
+                            ++ show a ++ "\n")
+
+        v1NextM =
+          flip fmap v1Out (\e -> let (vX, vY) = verticesOfEdgePair a e
+                                 in case (vX == v1, vY == v1) of
+                                      (True,  False) -> (e, vY)
+                                      (False, True)  -> (e, vX)
+                                      (False, False) -> error "Neither edge was v1"
+                                      (True,  True)  -> error "Both edges were v1")
+
+
+        v1NextConnected = case v1NextM of
+          Nothing          -> False
+          Just (e, v1Next) -> verticesAreConnected a (Just e) v1Next v2
+
+        isPresent e = edgeLabel a e == Just Present
 
 edgeLabel :: Arena a -> Edge -> a
 edgeLabel a = fromJust . flip Data.Map.lookup (arenaEdges a)
