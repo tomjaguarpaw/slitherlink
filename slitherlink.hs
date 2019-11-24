@@ -444,7 +444,6 @@ pid22740partial =
 
 pid23828partial =
   foldl (\a (e, p) -> setPresence a e p) (arenaOfFoo pid23828)
-  (take 0
   [ (((5, 7), East),  Present)
   , (((8, 3), South), Present)
   , (((9, 3), South), Present)
@@ -452,7 +451,6 @@ pid23828partial =
   , (((8, 5), East), Present)
   , (((9, 5), South), Present)
   ]
-  )
 
 arenaOfFoo :: [[Foo]] -> Arena (Maybe EdgePresence)
 arenaOfFoo foo = empty { arenaNumbers = ns }
