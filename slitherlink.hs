@@ -270,6 +270,7 @@ main = do
           let undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
 
           fix ^> 0 $ (\refute d' -> do
+            if d' > 10 then error "Stuck" else return ()
             putStrLn ("Refuting at depth: " ++ show d')
             case stepR d' a of
               Unsure         -> refute (d'+1)
