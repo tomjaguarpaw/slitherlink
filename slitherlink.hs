@@ -30,23 +30,8 @@ data StepResult = Solved
                 | Don'tKnowWhatToDo
 
 data Refutable2Result = Unsure
-                      | Implication (Arena (Maybe EdgePresence))
+                      | Implication (Arena (Maybe EdgePresence)) Edge
                       | Inconsistent
-
-(&&&) :: Refutable2Result -> Refutable2Result -> Refutable2Result
-x &&& y = case x of
-  Unsure -> Unsure
-  Inconsistent -> y
-  Implication a -> case y of
-    Unsure        -> Unsure
-    Inconsistent  -> Implication a
-    Implication _ -> Unsure
-
-(|||) :: Refutable2Result -> Refutable2Result -> Refutable2Result
-x ||| y = case x of
-  Unsure        -> y
-  Inconsistent  -> Inconsistent
-  Implication a -> Implication a
 
 setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Maybe edgePresence)
 setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
@@ -77,10 +62,10 @@ refutable2 n (e, ep) es a = immediatelyRefutableBy a (e, ep)
         branch (e', es') = case (immediatelyRefutableBy a (e', Present),
                                  immediatelyRefutableBy a (e', Absent)) of
           (True, True)   -> True
-          (False, True)  -> recurse ((e', Present), es') (n-1)
-          (True, False)  -> recurse ((e', Absent), es') (n-1)
-          (False, False) -> recurse ((e', Present), es') (n-2)
-                            && recurse ((e', Absent), es') (n-2)
+          (False, True)  -> recurse ((e', Present), es') n
+          (True, False)  -> recurse ((e', Absent), es') n
+          (False, False) -> recurse ((e', Present), es') (n-1)
+                            && recurse ((e', Absent), es') (n-1)
 
 refutableBy :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> (Edge, EdgePresence)
             -> Bool
@@ -111,13 +96,15 @@ adjoins a e1 e2 = have facesInCommon || have verticesInCommon
 
         have = not . null
 
-stepR :: Int -> Arena (Maybe EdgePresence) -> Refutable2Result
-stepR d a = case undecidedEdges of
+stepR :: Int -> Edge -> Arena (Maybe EdgePresence) -> Refutable2Result
+stepR d near a = case undecidedEdges of
   []    -> Unsure
   (_:_) -> case firstThat (\(eep, es) -> refutable2 d eep es a) foo of
     Nothing -> Unsure
-    Just ((e, ep), _) -> Implication (setPresence a e (notP ep))
-  where undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
+    Just ((e, ep), _) -> Implication (setPresence a e (notP ep)) e
+  where undecidedEdges = (sortBy (comparing (distance near))
+                          . filter (isNothing . edgeLabel a)
+                          . arenaEdgesT) a
         foo = do
           e <- undecidedEdges
           let others = undecidedEdges \\ [e]
@@ -264,7 +251,7 @@ data Choice = P Edge | A Edge deriving Read
 
 main :: IO ()
 main = do
-  fix ^> arenaOfFoo pid23828 ^> 0 $ \loop a n -> do
+  fix ^> pid23828partial ^> ((0,0),East) ^> 0 $ \loop a e n -> do
           print n
           printArena a
           let undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
@@ -272,10 +259,10 @@ main = do
           fix ^> 0 $ (\refute d' -> do
             if d' > 10 then error "Stuck" else return ()
             putStrLn ("Refuting at depth: " ++ show d')
-            case stepR d' a of
-              Unsure         -> refute (d'+1)
-              Inconsistent   -> error "Oh dear it was inconsistent"
-              Implication a' -> loop a' (n+1))
+            case stepR d' e a of
+              Unsure           -> refute (d'+1)
+              Inconsistent     -> error "Oh dear it was inconsistent"
+              Implication a' e -> loop a' e (n+1))
 
 {-
                 fix (\continue -> do
