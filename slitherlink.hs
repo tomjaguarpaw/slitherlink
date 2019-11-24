@@ -5,7 +5,7 @@ import Debug.Trace
 
 import qualified Data.Map
 import Data.List (tails, sortBy)
-import Data.Maybe (fromJust, isNothing)
+import Data.Maybe (fromJust, isNothing, mapMaybe)
 import Data.Ord (comparing)
 import Text.Read (readMaybe)
 import Data.Function (fix)
@@ -52,22 +52,36 @@ setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Mayb
 setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
 
 -- Assuming the arena is not immediately refutable
-refutable2 :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> Refutable2Result
-refutable2 _ []     _ = Unsure
-refutable2 0 _      _ = Unsure
-refutable2 n (e:es) a = branch ||| recurseSublist
-  where recursePresent n' = refutable2 n' (byDistance es) (setPresence a e Present)
-        recurseAbsent n'  = refutable2 n' (byDistance es) (setPresence a e Absent)
-        recurseSublist    = refutable2 n es a
+-- and the edges are undecided
+refutable2 :: Int -> Edge -> [Edge] -> Arena (Maybe EdgePresence)
+           -> Refutable2Result
+refutable2 _ _ [] _ = Unsure
+refutable2 0 _ _  _ = Unsure
+refutable2 n e es a = branch {- ||| recurseSublist -}
+  where recursePresent n' = foldr (\(f, fs) -> (refutable2 n' f fs sPP |||))
+                                  Unsure
+                                  foo
+        recurseAbsent n'  = foldr (\(f, fs) -> (refutable2 n' f fs sPA |||))
+                                  Unsure
+                                  foo
+
+        sPP = (setPresence a e Present)
+        sPA = (setPresence a e Absent)
+
+        foo :: [(Edge, [Edge])]
+        foo = (filter ((<= 2) . distance e . fst)
+               . mapMaybe (\case [] -> Nothing; (x:xs) -> Just (x, xs))
+               . tails)
+              es
+
+        --recurseSublist    = refutable2 n es a
         byDistance        = sortBy (comparing (distance e))
 
         branch = case (immediatelyRefutableBy a (e, Present),
                        immediatelyRefutableBy a (e, Absent)) of
           (True, True)   -> Inconsistent
-          (False, True)  -> recursePresent n
-                            ||| Implication (setPresence a e Present)
-          (True, False)  -> recurseAbsent n
-                            ||| Implication (setPresence a e Absent)
+          (False, True)  -> recursePresent n ||| Implication sPP
+          (True, False)  -> recurseAbsent  n ||| Implication sPA
           (False, False) -> recursePresent (n-1) &&& recurseAbsent (n-1)
 
 refutableBy :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> (Edge, EdgePresence)
@@ -91,67 +105,14 @@ refutableBy n es a' eep =
 distance :: Edge -> Edge -> Int
 distance ((x1, y1), _) ((x2, y2), _) = abs (x2 - x1) + abs (y2 - y1)
 
-
-
-stepR :: Arena (Maybe EdgePresence) -> StepResult
-stepR a = case undecidedEdges of
-  []    -> Solved
-  (_:_) -> case mNext of
-             Nothing   -> Don'tKnowWhatToDo
-             Just next -> Step next
+stepR :: Int -> Arena (Maybe EdgePresence) -> Refutable2Result
+stepR d a = case undecidedEdges of
+  []    -> Unsure
+  (_:_) -> foldr (|||) Unsure $ flip mapMaybe (tails undecidedEdges) $ \case
+    []     -> Nothing
+    (e:es) -> Just (refutable2 d e es a)
 
   where undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
-        refutationAttempts0 =
-          flip concatMap undecidedEdges (\e ->
-            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = setPresence a e Present
-                   aA = setPresence a e Absent
-               in
-               -- Yes, these go the opposite way
-               [ (refutableBy 0 nearby a (e, Present), aA)
-               , (refutableBy 0 nearby a (e, Absent),  aP)
-               ])
-        refutationAttempts =
-          flip concatMap undecidedEdges (\e ->
-            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = setPresence a e Present
-                   aA = setPresence a e Absent
-               in
-               -- Yes, these go the opposite way
-               [ (refutableBy 1 nearby a (e, Present), aA)
-               , (refutableBy 1 nearby a (e, Absent),  aP)
-               ])
-        refutationAttempts2 =
-          flip concatMap undecidedEdges (\e ->
-            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = setPresence a e Present
-                   aA = setPresence a e Absent
-               in
-               -- Yes, these go the opposite way
-               [ (refutableBy 2 nearby a (e, Present), aA)
-               , (refutableBy 2 nearby a (e, Absent),  aP)
-               ])
-        refutationAttempts3 =
-          flip concatMap undecidedEdges (\e ->
-            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 2) undecidedEdges
-            in let aP = setPresence a e Present
-                   aA = setPresence a e Absent
-               in
-               -- Yes, these go the opposite way
-               [ (refutableBy 3 nearby a (e, Present), aA)
-               , (refutableBy 3 nearby a (e, Absent),  aP)
-               ])
-        refutationAttemptsMany =
-          flip concatMap undecidedEdges (\e ->
-            let nearby = sortBy (comparing (distance e)) $ filter (\e1 -> distance e e1 <= 3) undecidedEdges
-            in let aP = setPresence a e Present
-                   aA = setPresence a e Absent
-               in
-               -- Yes, these go the opposite way
-               [ (refutableBy 4 nearby a (e, Present), aA)
-               , (refutableBy 4 nearby a (e, Absent),  aP)
-               ])
-        mNext = fmap snd (firstThat fst (refutationAttempts0 ++ refutationAttempts ++ refutationAttempts2 ++ refutationAttempts3 ++ refutationAttemptsMany))
 
 firstThat :: (a -> Bool) -> [a] -> Maybe a
 firstThat _ [] = Nothing
@@ -292,17 +253,17 @@ data Choice = P Edge | A Edge deriving Read
 
 main :: IO ()
 main = do
-  fix ^> arenaOfFoo pid21153 ^> 0 ^> 1 $ \loop a n d -> do
+  fix ^> arenaOfFoo pid21153 ^> 0 ^> 0 $ \loop a n d -> do
           print n
           printArena a
           let undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
 
           fix ^> d $ (\refute d' -> do
             putStrLn ("Refuting at depth: " ++ show d')
-            case refutable2 d' undecidedEdges a of
+            case stepR d' a of
               Unsure         -> refute (d'+1)
               Inconsistent   -> error "Oh dear it was inconsistent"
-              Implication a' -> loop a' (n+1) 0)
+              Implication a' -> loop a' (n+1) d)
 
 {-
                 fix (\continue -> do
