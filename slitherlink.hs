@@ -1,15 +1,23 @@
 {-# LANGUAGE LambdaCase #-}
 --{-# OPTIONS_GHC -Wall #-}
 
-import Debug.Trace
-
 import qualified Data.Map
 import Data.List (tails, sortBy, (\\), intersect)
-import Data.Maybe (fromJust, isNothing, isJust, mapMaybe)
+import Data.Maybe (fromJust, isNothing)
 import Data.Ord (comparing)
 import Text.Read (readMaybe)
 import Data.Function (fix)
 import Data.Foldable (toList)
+
+-- From Split
+build :: ((a -> [a] -> [a]) -> [a] -> [a]) -> [a]
+build g = g (:) []
+
+chunksOf :: Int -> [e] -> [[e]]
+chunksOf i ls = map (take i) (build (splitter ls)) where
+  splitter :: [e] -> ([e] -> a -> a) -> a -> a
+  splitter [] _ n = n
+  splitter l c n  = l `c` splitter (drop i l) c n
 
 data EdgeDirection = South | East deriving (Ord, Eq, Show, Read)
 
@@ -47,18 +55,15 @@ notP = \case
 refutable2 :: Int -> (Edge, EdgePresence) -> [Edge] -> Arena (Maybe EdgePresence)
            -> Bool
 refutable2 n (e, ep) es a = immediatelyRefutableBy a (e, ep)
-                            || (n > 0 && any branch foo)
+                            || (n > 0 && any branch adjoiningEdges)
   where recurse (e', es') n' = refutable2 n' e' es' sP
 
         sP = setPresence a e ep
 
-        foo :: [(Edge, [Edge])]
-        foo = (filter (adjoins a e . fst)
-                . map (\f -> (f, es \\ [f])))
-              es
-
-        --recurseSublist    = refutable2 n es a
-        byDistance        = sortBy (comparing (distance e))
+        adjoiningEdges :: [(Edge, [Edge])]
+        adjoiningEdges = (filter (adjoins a e . fst)
+                          . map (\f -> (f, es \\ [f])))
+                         es
 
         branch (e', es') = case (immediatelyRefutableBy a (e', Present),
                                  immediatelyRefutableBy a (e', Absent)) of
@@ -89,6 +94,8 @@ refutableBy n es a' eep =
 distance :: Edge -> Edge -> Int
 distance ((x1, y1), _) ((x2, y2), _) = abs (x2 - x1) + abs (y2 - y1)
 
+-- Edges adjoin if they share a face or a vertex
+adjoins :: Arena a -> Edge -> Edge -> Bool
 adjoins a e1 e2 = have facesInCommon || have verticesInCommon
   where facesInCommon = facesOfEdge a e1
                         `intersect` facesOfEdge a e2
@@ -100,13 +107,17 @@ adjoins a e1 e2 = have facesInCommon || have verticesInCommon
 stepR :: Int -> Edge -> Arena (Maybe EdgePresence) -> Refutable2Result
 stepR d near a = case undecidedEdges of
   []    -> Unsure
-  (_:_) -> case firstThat (\(eep, es) -> refutable2 d eep es a) foo of
+  (_:_) -> case firstRefutableChoice of
     Nothing -> Unsure
     Just ((e, ep), _) -> Implication (setPresence a e (notP ep)) e
   where undecidedEdges = (sortBy (comparing (distance near))
                           . filter (isNothing . edgeLabel a)
                           . arenaEdgesT) a
-        foo = do
+
+        firstRefutableChoice =
+          firstThat (\(eep, es) -> refutable2 d eep es a) presenceChoices
+
+        presenceChoices = do
           e <- undecidedEdges
           let others = undecidedEdges \\ [e]
           ep <- [Absent, Present]
@@ -225,6 +236,11 @@ validSoFar arena = all (validFaceSoFar arena) (arenaFaces arena)
 -- has more than one edge coming out of it.
 --
 -- I'm really not too confident about this
+verticesAreConnected :: Arena (Maybe EdgePresence)
+                     -> Maybe Edge
+                     -> Vertex
+                     -> Vertex
+                     -> Bool
 verticesAreConnected a ignored v1 v2 =
   they'reTheSame || v1NextConnected
 
@@ -233,11 +249,12 @@ verticesAreConnected a ignored v1 v2 =
                      \\ toList ignored of
           []    -> Nothing
           [e1]  -> Just e1
-          a@(_:_) -> error ("Didn't expect more than one edge out of v1\n"
-                            ++ show v1 ++ "\n"
-                            ++ show v2 ++ "\n"
-                            ++ show ignored ++ "\n"
-                            ++ show a ++ "\n")
+          unexpected@(_:_) ->
+            error ("Didn't expect more than one edge out of v1\n"
+                    ++ show v1 ++ "\n"
+                    ++ show v2 ++ "\n"
+                    ++ show ignored ++ "\n"
+                    ++ show unexpected ++ "\n")
 
         v1NextM =
           flip fmap v1Out (\e -> let (vX, vY) = verticesOfEdgePair a e
@@ -289,20 +306,21 @@ data Choice = P Edge | A Edge deriving Read
 (^>) :: (a -> b -> c) -> b -> a -> c
 (^>) = flip
 
+-- This can eventually solve pid23828!
+
 main :: IO ()
 main = do
   fix ^> pid23828partial ^> ((0,0),East) ^> 0 $ \loop a e n -> do
           print n
           printArena a
-          let undecidedEdges = filter (isNothing . edgeLabel a) (arenaEdgesT a)
 
           fix ^> 0 $ (\refute d' -> do
             if d' > 10 then error "Stuck" else return ()
             putStrLn ("Refuting at depth: " ++ show d')
             case stepR d' e a of
-              Unsure           -> refute (d'+1)
-              Inconsistent     -> error "Oh dear it was inconsistent"
-              Implication a' e -> loop a' e (n+1))
+              Unsure            -> refute (d'+1)
+              Inconsistent      -> error "Oh dear it was inconsistent"
+              Implication a' e' -> print e >> loop a' e' (n+1))
 
 {-
                 fix (\continue -> do
@@ -315,7 +333,7 @@ main = do
 
 emptyArena :: Int -> Int -> Arena (Maybe EdgePresence)
 emptyArena x y = Arena x y Data.Map.empty (Data.Map.fromList edges')
-  where edges' = map (\x -> (x, Nothing)) (edgesHW x y)
+  where edges' = map (\f -> (f, Nothing)) (edgesHW x y)
 
 edgesHW :: Int -> Int -> [Edge]
 edgesHW x y = edges
@@ -360,6 +378,32 @@ pid21153 =
   , [ __, __,  2, __,  1,  0, __,  1, __, __]
   , [  3,  2,  1,  1,  1,  2,  3,  3,  3,  3]
   ]
+
+-- Easy
+pid21154 :: [[Foo]]
+pid21154 = blah 10 10 ".23.21.31.2...32...322..21..123..2..3..2.2.3230.1..3.2023.3.1..3..2..232..23..321...03...2.33.32.33."
+
+-- Medium
+pid22739 :: [[Foo]]
+pid22739 = blah 10 10 "321.2.31.3..2...12.132..1...0231.0.02......2...2.13.2...3......32.3.1311...1..232.13...2..1.22.2.232"
+
+-- Hard
+pid23825 :: [[Foo]]
+pid23825 = blah 10 10 ".21.3...3.3..3.311.3.11....2.1.1...1..1..2.0.....20.....3.3..3..3...2.3.1....01.2.222.3..1.3...3.22."
+
+-- Very hard
+pid23630 :: [[Foo]]
+pid23630 = blah 10 10 "32.3..2.231..1213..311......13....21....223.32.230122.11.122....22....32......122..3322..132.1..2.21"
+
+blah :: Int -> a -> String -> [[Foo]]
+blah a _ = chunksOf a . map toFoo
+  where toFoo = \case
+          '0' -> 0
+          '1' -> 1
+          '2' -> 2
+          '3' -> 3
+          '.' -> __
+          c   -> error ("blah: Unexpected character: " ++ show c)
 
 pid22740 :: [[Foo]]
 pid22740 =
