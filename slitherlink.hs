@@ -397,7 +397,9 @@ pid23630 = blah 10 10 "32.3..2.231..1213..311......13....21....223.32.230122.11.
 
 blah :: Int -> a -> String -> [[FaceLabel]]
 blah a _ = chunksOf a . map toFaceLabel
-  where toFaceLabel = \case
+
+toFaceLabel :: Char -> FaceLabel
+toFaceLabel = \case
           '0' -> 0
           '1' -> 1
           '2' -> 2
