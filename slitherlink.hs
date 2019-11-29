@@ -36,15 +36,9 @@ type Face = (Int, Int)
 type Vertex = (Int, Int)
 type Edge = (Vertex, EdgeDirection)
 
-data StepResult = Solved
-                | Step (Arena (Maybe EdgePresence))
-                | Unsolvable
-                | Don'tKnowWhatToDo
-
-data Refutable2Result = Unsure
-                      | Implication (Arena (Maybe EdgePresence)) Edge
-                      | Inconsistent
-                      | Complete
+data StepResult = Unsure
+                | Implication (Arena (Maybe EdgePresence)) Edge
+                | Complete
 
 setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Maybe edgePresence)
 setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
@@ -56,11 +50,11 @@ notP = \case
 
 -- Assuming the arena is not immediately refutable
 -- and the edges are undecided
-refutable2 :: Int -> (Edge, EdgePresence) -> [Edge] -> Arena (Maybe EdgePresence)
-           -> Bool
-refutable2 n (e, ep) es a = immediatelyRefutableBy a (e, ep)
+refutable :: Int -> (Edge, EdgePresence) -> [Edge] -> Arena (Maybe EdgePresence)
+          -> Bool
+refutable n (e, ep) es a = immediatelyRefutableBy a (e, ep)
                             || n > 0 && foldr branch False adjoiningEdges
-  where recurse (e', es') n' = refutable2 n' e' es' sP
+  where recurse (e', es') n' = refutable n' e' es' sP
 
         sP = setPresence a e ep
 
@@ -78,24 +72,6 @@ refutable2 n (e, ep) es a = immediatelyRefutableBy a (e, ep)
                              && recurse ((e', Absent), es') (n-1))
                             || others
 
-refutableBy :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> (Edge, EdgePresence)
-            -> Bool
-refutableBy 0 _  a' eep = immediatelyRefutableBy a' eep
-refutableBy n es a' eep =
-    immediatelyRefutableBy a' eep
-    || or
-         (flip map (tails es) $ \some_es ->
-             case some_es of
-               []           -> False
-               (e:other_es) ->
-                  if isNothing (edgeLabel a e)
-                  then all (refutableBy (n-1) other_es a)
-                           [ (e, Present)
-                           , (e, Absent)
-                           ]
-                  else False)
-  where a = uncurry (setPresence a') eep
-
 distance :: Edge -> Edge -> Int
 distance ((x1, y1), _) ((x2, y2), _) = abs (x2 - x1) + abs (y2 - y1)
 
@@ -109,7 +85,7 @@ adjoins a e1 e2 = have facesInCommon || have verticesInCommon
 
         have = not . null
 
-stepR :: Int -> Edge -> Arena (Maybe EdgePresence) -> Refutable2Result
+stepR :: Int -> Edge -> Arena (Maybe EdgePresence) -> StepResult
 stepR d near a = case undecidedEdges of
   []    -> Complete
   (_:_) -> case firstRefutableChoice of
@@ -120,7 +96,7 @@ stepR d near a = case undecidedEdges of
                           . arenaEdgesT) a
 
         firstRefutableChoice =
-          firstThat (\(eep, es) -> refutable2 d eep es a) presenceChoices
+          firstThat (\(eep, es) -> refutable d eep es a) presenceChoices
 
         presenceChoices = do
           e <- undecidedEdges
@@ -338,7 +314,6 @@ main = do
             case stepR d' e a of
               Complete          -> putStrLn "Complete!"
               Unsure            -> refute (d'+1)
-              Inconsistent      -> error "Oh dear it was inconsistent"
               Implication a' e' -> print e' >> loop a' e' (n+1))
 
 {-
