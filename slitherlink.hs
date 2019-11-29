@@ -310,6 +310,8 @@ main = do
 
           fix ^> 0 $ (\refute d' -> do
             when (d' > 10) (error "Stuck")
+            when (d' >= 2) $
+              putStrLn ("Refuting at depth: " ++ show d')
             case stepR d' e a of
               Complete          -> putStrLn "Complete!"
               Unsure            -> refute (d'+1)
