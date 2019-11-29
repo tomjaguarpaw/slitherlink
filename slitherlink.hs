@@ -320,7 +320,7 @@ main = do
             case stepR d' e a of
               Unsure            -> refute (d'+1)
               Inconsistent      -> error "Oh dear it was inconsistent"
-              Implication a' e' -> print e >> loop a' e' (n+1))
+              Implication a' e' -> print e' >> loop a' e' (n+1))
 
 {-
                 fix (\continue -> do
