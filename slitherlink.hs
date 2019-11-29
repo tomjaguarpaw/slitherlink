@@ -308,13 +308,13 @@ main = do
           print n
           printArena a
 
-          fix ^> 0 $ (\refute d' -> do
-            when (d' > 10) (error "Stuck")
-            when (d' >= 2) $
-              putStrLn ("Refuting at depth: " ++ show d')
-            case stepR d' e a of
+          fix ^> 0 $ (\refute d -> do
+            when (d > 10) (error "Stuck")
+            when (d >= 2) $
+              putStrLn ("Refuting at depth: " ++ show d)
+            case stepR d e a of
               Complete          -> putStrLn "Complete!"
-              Unsure            -> refute (d'+1)
+              Unsure            -> refute (d+1)
               Implication a' e' -> print e' >> loop a' e' (n+1))
 
 {-
