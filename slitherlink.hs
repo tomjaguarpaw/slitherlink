@@ -40,8 +40,9 @@ data StepResult = Unsure
                 | Implication (Arena (Maybe EdgePresence)) Edge
                 | Complete
 
-setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Maybe edgePresence)
-setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
+setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence
+            -> Arena (Maybe edgePresence)
+setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p) (arenaEdges a) }
 
 notP :: EdgePresence -> EdgePresence
 notP = \case
@@ -294,8 +295,6 @@ char (Just Present) South = "\x001b[31;1m|\x001b[0m"
 char (Just Present) East  = "\x001b[31;1m-\x001b[0m"
 char (Just Absent)  South = " "
 char (Just Absent)  East  = " "
-
-data Choice = P Edge | A Edge deriving Read
 
 (^>) :: (a -> b -> c) -> b -> a -> c
 (^>) = flip
