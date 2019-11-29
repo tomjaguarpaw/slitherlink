@@ -395,6 +395,16 @@ pid23825 = blah 10 10 ".21.3...3.3..3.311.3.11....2.1.1...1..1..2.0.....20.....3
 pid23630 :: [[FaceLabel]]
 pid23630 = blah 10 10 "32.3..2.231..1213..311......13....21....223.32.230122.11.122....22....32......122..3322..132.1..2.21"
 
+pid23630topleft :: [[FaceLabel]]
+pid23630topleft = blah 10 2 "32.3..2.231..1213..3.........."
+
+pid23630topleftpartial =
+  foldl (\a (e, p) -> setPresence a e p) (arenaOfFaceLabels pid23630topleft)
+  [ (((3,0), East), Present)
+  , (((1,1), East), Present)
+  ]
+
+
 blah :: Int -> a -> String -> [[FaceLabel]]
 blah a _ = chunksOf a . map toFaceLabel
 
