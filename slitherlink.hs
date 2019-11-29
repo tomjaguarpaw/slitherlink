@@ -8,6 +8,7 @@ import Data.Ord (comparing)
 import Text.Read (readMaybe)
 import Data.Function (fix)
 import Data.Foldable (toList)
+import Control.Monad (when)
 
 -- From Split
 build :: ((a -> [a] -> [a]) -> [a] -> [a]) -> [a]
@@ -308,8 +309,7 @@ main = do
           printArena a
 
           fix ^> 0 $ (\refute d' -> do
-            if d' > 10 then error "Stuck" else return ()
-            putStrLn ("Refuting at depth: " ++ show d')
+            when (d' > 10) (error "Stuck")
             case stepR d' e a of
               Complete          -> putStrLn "Complete!"
               Unsure            -> refute (d'+1)
