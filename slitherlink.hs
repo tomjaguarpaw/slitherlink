@@ -525,8 +525,8 @@ pid23828partial =
 
 arenaOfFaceLabels :: [[FaceLabel]] -> Arena (Maybe EdgePresence)
 arenaOfFaceLabels foo = empty { arenaNumbers = ns }
-  where h = length foo
-        w = length (foo !! 0)
+  where w = length foo
+        h = length (foo !! 0)
         empty = emptyArena h w
         ns = Data.Map.fromList $ do
           (y, row)  <- zip [1..] foo
