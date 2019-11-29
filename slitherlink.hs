@@ -44,6 +44,7 @@ data StepResult = Solved
 data Refutable2Result = Unsure
                       | Implication (Arena (Maybe EdgePresence)) Edge
                       | Inconsistent
+                      | Complete
 
 setPresence :: Arena (Maybe edgePresence) -> Edge -> edgePresence -> Arena (Maybe edgePresence)
 setPresence a e p = a { arenaEdges = Data.Map.insert e (Just p)  (arenaEdges a) }
@@ -110,7 +111,7 @@ adjoins a e1 e2 = have facesInCommon || have verticesInCommon
 
 stepR :: Int -> Edge -> Arena (Maybe EdgePresence) -> Refutable2Result
 stepR d near a = case undecidedEdges of
-  []    -> Unsure
+  []    -> Complete
   (_:_) -> case firstRefutableChoice of
     Nothing -> Unsure
     Just ((e, ep), _) -> Implication (setPresence a e (notP ep)) e
@@ -335,6 +336,7 @@ main = do
             if d' > 10 then error "Stuck" else return ()
             putStrLn ("Refuting at depth: " ++ show d')
             case stepR d' e a of
+              Complete          -> putStrLn "Complete!"
               Unsure            -> refute (d'+1)
               Inconsistent      -> error "Oh dear it was inconsistent"
               Implication a' e' -> print e' >> loop a' e' (n+1))
