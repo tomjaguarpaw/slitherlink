@@ -3,7 +3,7 @@
 
 import qualified Data.Map
 import Data.List (tails, sortBy, (\\), intersect)
-import Data.Maybe (fromJust, isNothing)
+import Data.Maybe (fromJust, isNothing, fromMaybe)
 import Data.Ord (comparing)
 import Text.Read (readMaybe)
 import Data.Function (fix)
@@ -28,6 +28,9 @@ data Arena a = Arena { arenaWidth   :: Int
                      , arenaNumbers :: Data.Map.Map Face Int
                      , arenaEdges   :: Data.Map.Map Edge a
                      } deriving Show
+
+mapArena :: (a -> b) -> Arena a -> Arena b
+mapArena f a = a { arenaEdges = Data.Map.map f (arenaEdges a) }
 
 type Face = (Int, Int)
 type Vertex = (Int, Int)
@@ -55,23 +58,24 @@ notP = \case
 refutable2 :: Int -> (Edge, EdgePresence) -> [Edge] -> Arena (Maybe EdgePresence)
            -> Bool
 refutable2 n (e, ep) es a = immediatelyRefutableBy a (e, ep)
-                            || (n > 0 && any branch adjoiningEdges)
+                            || n > 0 && foldr branch False adjoiningEdges
   where recurse (e', es') n' = refutable2 n' e' es' sP
 
         sP = setPresence a e ep
 
-        adjoiningEdges :: [(Edge, [Edge])]
-        adjoiningEdges = (filter (adjoins a e . fst)
-                          . map (\f -> (f, es \\ [f])))
-                         es
+        adjoiningEdges :: [(Bool, Edge, [Edge])]
+        adjoiningEdges = map (\f -> (adjoins a e f, f, es \\ [f])) es
 
-        branch (e', es') = case (immediatelyRefutableBy a (e', Present),
-                                 immediatelyRefutableBy a (e', Absent)) of
+        branch (adjoins_, e', es') others =
+          case (immediatelyRefutableBy sP (e', Present),
+                immediatelyRefutableBy sP (e', Absent)) of
           (True, True)   -> True
           (False, True)  -> recurse ((e', Present), es') n
           (True, False)  -> recurse ((e', Absent), es') n
-          (False, False) -> recurse ((e', Present), es') (n-1)
-                            && recurse ((e', Absent), es') (n-1)
+          (False, False) -> (adjoins_
+                             && recurse ((e', Present), es') (n-1)
+                             && recurse ((e', Absent), es') (n-1))
+                            || others
 
 refutableBy :: Int -> [Edge] -> Arena (Maybe EdgePresence) -> (Edge, EdgePresence)
             -> Bool
@@ -200,6 +204,14 @@ validFaceSoFar arena face = case Data.Map.lookup face (arenaNumbers arena) of
           notSure = length (filter (== Nothing) edgePresences)
           possiblyPresent = definitelyPresent + notSure
 
+validFace :: Arena EdgePresence -> Face -> Bool
+validFace arena face = case Data.Map.lookup face (arenaNumbers arena) of
+  Nothing     -> True
+  Just number -> definitelyPresent == number
+    where edges   = edgesOfFace face
+          edgePresences = map (edgeLabel arena) edges
+          definitelyPresent = length (filter (== Present) edgePresences)
+
 validVertexSoFar :: Arena (Maybe EdgePresence) -> Vertex -> Bool
 validVertexSoFar arena vertex =
   ((definitelyPresent <= 0) && (0 <= possiblyPresent))
@@ -225,12 +237,17 @@ validEvenWith arena (e, ep) =
   && all (validVertexSoFar arenaWith) (verticesOfEdge arenaWith e)
   && (ep == Absent
       || not (uncurry (verticesAreConnected arena Nothing)
-                      (verticesOfEdgePair arena e)))
+                      (verticesOfEdgePair arena e))
+      || complete arenaWith)
   where arenaWith = setPresence arena e ep
 
 validSoFar :: Arena (Maybe EdgePresence) -> Bool
 validSoFar arena = all (validFaceSoFar arena) (arenaFaces arena)
                    && all (validVertexSoFar arena) (arenaVertices arena)
+
+complete :: Arena (Maybe EdgePresence) -> Bool
+complete arena = all (validFace arena') (arenaFaces arena')
+  where arena' = mapArena (fromMaybe Absent) arena
 
 -- Assumption that a is valid up to loops and that neither v1 nor v2
 -- has more than one edge coming out of it.
@@ -306,7 +323,7 @@ data Choice = P Edge | A Edge deriving Read
 (^>) :: (a -> b -> c) -> b -> a -> c
 (^>) = flip
 
--- This can eventually solve pid23828!
+-- This can eventually solve pid23828 and pid23630!
 
 main :: IO ()
 main = do
